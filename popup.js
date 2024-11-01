@@ -1,32 +1,22 @@
-let emojiList = []; // Initialize the emojiList array
-
 document.addEventListener('DOMContentLoaded', async () => {
     const searchBox = document.getElementById('searchBox');
     const emojiGrid = document.getElementById('emojiGrid');
     const status = document.getElementById('status');
 
+    let emojiList = []; // Initialize the emoji list array
+
     try {
-        // Fetch the JSON file instead of a JS file
         const response = await fetch(chrome.runtime.getURL('emojiData.json'));
+        if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
         
-        // Check if the response is okay (status in the range 200-299)
-        if (!response.ok) {
-            throw new Error(`HTTP error! Status: ${response.status}`);
-        }
-    
-        // Parse the JSON directly
         const jsonData = await response.json();
-        
-        // Store the emoji data in emojiList
-        emojiList = jsonData.all; // Populate emojiList with the emoji data
-    
-        // Display all emojis initially
-        displayEmojis(emojiList); // Display the emojis after loading them
+        emojiList = jsonData.all; // Populate emojiList with emoji data
+        displayEmojis(emojiList); // Display emojis upon loading
+
     } catch (error) {
         console.error('Error loading emoji data:', error);
     }
-    
-    // Search functionality
+
     searchBox.addEventListener('input', (e) => {
         const searchTerm = e.target.value.toLowerCase();
         const filteredEmojis = emojiList.filter(emoji =>
@@ -37,33 +27,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     function displayEmojis(emojis) {
-        emojiGrid.innerHTML = emojis.map(emoji => {
-            // Parse each emoji in the map function directly
-            return `
-                <div class="emoji-card" data-emoji="${emoji.emoji}">
-                    <span class="emoji">${emoji.emoji}</span>
-                    <span class="emoji-name">:${emoji.name.replace(':','')}:</span>
-                </div>
-            `;
-        }).join('');
+        emojiGrid.innerHTML = emojis.map(emoji => `
+            <div class="emoji-card" data-emoji="${emoji.emoji}">
+                <span class="emoji">${emoji.emoji}</span>
+                <span class="emoji-name">:${emoji.name}:</span>
+            </div>
+        `).join('');
     }
 
-    // Handle emoji clicks
     emojiGrid.addEventListener('click', async (e) => {
         const card = e.target.closest('.emoji-card');
         if (!card) return;
 
         const emoji = card.dataset.emoji;
-
-        // Try to insert into active X input first
         try {
             const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-            await chrome.tabs.sendMessage(tab.id, {
-                action: 'insertEmoji',
-                emoji: emoji
-            });
+            await chrome.tabs.sendMessage(tab.id, { action: 'insertEmoji', emoji });
         } catch (error) {
-            // If insertion fails, copy to clipboard
             await copyToClipboard(emoji);
             showStatus();
         }
@@ -79,8 +59,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function showStatus() {
         status.style.display = 'block';
-        setTimeout(() => {
-            status.style.display = 'none';
-        }, 2000);
+        setTimeout(() => { status.style.display = 'none'; }, 2000);
     }
 });
