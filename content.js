@@ -8,6 +8,7 @@ class EmojiPicker {
         this.observer = null;
         this.insertMode = false;
         this.activeDiv = null;
+        this.lastCursorPosition = null; // Track the last cursor position
     }
 
     async init() {
@@ -47,7 +48,8 @@ class EmojiPicker {
                 e.preventDefault();
                 e.stopPropagation();
                 const emoji = option.dataset.emoji;
-                this.insertEmoji(emoji);
+                // Use the stored cursor position for click insertion
+                this.insertEmoji(emoji, true);
             }
         });
     }
@@ -118,7 +120,9 @@ class EmojiPicker {
                 case 'Tab':
                     if (this.currentMatches[this.selectedIndex]) {
                         e.preventDefault();
-                        this.insertEmoji(this.currentMatches[this.selectedIndex].emoji);
+                        e.stopPropagation();
+                        this.insertEmoji(this.currentMatches[this.selectedIndex].emoji, false);
+                        return false;
                     }
                     return;
                 case 'Escape':
@@ -128,21 +132,8 @@ class EmojiPicker {
             }
         }
 
-        // Handle direct emoji insertion via colon
-        if (e.key === ':') {
-            const beforeCursor = this.getTextBeforeCursor();
-            const colonMatch = beforeCursor.match(/:(\w*)$/);
-            
-            if (colonMatch) {
-                const searchTerm = colonMatch[1];
-                const emoji = this.findExactMatch(searchTerm);
-                if (emoji) {
-                    e.preventDefault();
-                    this.insertEmoji(emoji.emoji);
-                    return;
-                }
-            }
-        }
+        // Store cursor position whenever typing occurs
+        this.storeCursorPosition();
 
         setTimeout(() => {
             const currentText = this.getTextBeforeCursor();
@@ -163,10 +154,23 @@ class EmojiPicker {
         }, 0);
     }
 
+    storeCursorPosition() {
+        const selection = window.getSelection();
+        if (selection.rangeCount) {
+            const range = selection.getRangeAt(0);
+            this.lastCursorPosition = {
+                node: range.startContainer,
+                offset: range.startOffset,
+                text: this.getTextBeforeCursor()
+            };
+        }
+    }
+
     getTextBeforeCursor() {
         if (!this.activeDiv) return '';
         const selection = window.getSelection();
         if (!selection.rangeCount) return '';
+        
         const range = selection.getRangeAt(0).cloneRange();
         const textNode = this.findFirstTextNode(this.activeDiv);
         
@@ -194,34 +198,61 @@ class EmojiPicker {
         return null;
     }
 
-    insertEmoji(emoji) {
-        if (!this.activeDiv) return;
-        const selection = window.getSelection();
-        if (!selection.rangeCount) return;
-        const range = selection.getRangeAt(0);
-        const beforeText = this.getTextBeforeCursor();
-        const colonIndex = beforeText.lastIndexOf(':');
-        
-        if (colonIndex !== -1) {
-            const textNode = range.startContainer;
+    insertEmoji(emoji, isClick) {
+        if (this.isInserting || !this.activeDiv) return;
+        this.isInserting = true;
+
+        try {
+            const textNode = isClick && this.lastCursorPosition ? 
+                this.lastCursorPosition.node : 
+                window.getSelection().getRangeAt(0).startContainer;
+
             if (textNode.nodeType === Node.TEXT_NODE) {
                 const fullText = textNode.textContent;
-                const startOffset = Math.max(0, textNode.textContent.length - beforeText.length + colonIndex);
+                let cursorPosition;
                 
-                const beforeEmoji = fullText.substring(0, startOffset);
-                const afterEmoji = fullText.substring(range.startOffset);
-                textNode.textContent = beforeEmoji + emoji + afterEmoji;
+                if (isClick && this.lastCursorPosition) {
+                    // For clicks, find the end of the emoji text sequence instead of using stored position
+                    const beforeText = this.lastCursorPosition.text;
+                    const colonMatch = beforeText.match(/:[^:\s]*$/);
+                    if (colonMatch) {
+                        cursorPosition = this.lastCursorPosition.offset + 
+                            (beforeText.length - colonMatch.index);
+                    } else {
+                        cursorPosition = this.lastCursorPosition.offset;
+                    }
+                } else {
+                    cursorPosition = window.getSelection().getRangeAt(0).startOffset;
+                }
                 
-                const newPosition = startOffset + emoji.length;
+                const beforeCursor = fullText.substring(0, cursorPosition);
+                const afterCursor = fullText.substring(cursorPosition);
+
+                const colonMatch = beforeCursor.match(/:[^:\s]*$/);
+                if (!colonMatch) return;
+
+                const colonIndex = colonMatch.index;
+                const newText = fullText.substring(0, colonIndex) + emoji + 
+                    fullText.substring(cursorPosition);
+                
+                textNode.textContent = newText;
+
+                const range = document.createRange();
+                const selection = window.getSelection();
+                const newPosition = colonIndex + emoji.length;
                 range.setStart(textNode, newPosition);
                 range.setEnd(textNode, newPosition);
                 selection.removeAllRanges();
                 selection.addRange(range);
             }
+
+            this.activeDiv.dispatchEvent(new Event('input', { bubbles: true }));
+            this.close();
+        } finally {
+            setTimeout(() => {
+                this.isInserting = false;
+            }, 100);
         }
-        
-        this.activeDiv.dispatchEvent(new Event('input', { bubbles: true }));
-        this.close();
     }
 
     searchEmojis(query) {
@@ -286,17 +317,18 @@ class EmojiPicker {
     }
 }
 
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.action === 'insertEmoji') {
-        const activeElement = document.querySelector('[data-testid="tweetTextarea_0"]');
-        if (activeElement) {
-            const emoji = request.emoji;
-            activeElement.dispatchEvent(new Event('focusin'));
-            picker.activeDiv = activeElement;
-            picker.currentInput = activeElement;
-            picker.insertEmoji(emoji);
-        }
-    }
-});
+// // Handle messages from background script
+// chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+//     if (request.action === 'insertEmoji') {
+//         const activeElement = document.querySelector('[data-testid="tweetTextarea_0"]');
+//         if (activeElement) {
+//             const emoji = request.emoji;
+//             activeElement.dispatchEvent(new Event('focusin'));
+//             picker.activeDiv = activeElement;
+//             picker.currentInput = activeElement;
+//             picker.insertEmoji(emoji, false);
+//         }
+//     }
+// });
 
 const picker = new EmojiPicker();
