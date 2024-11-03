@@ -7,8 +7,14 @@
     "clipboardWrite",
     "activeTab"
   ],
+  "icons": {
+    "16": "images/logo.png",
+    "48": "images/logo.png",
+    "128": "images/logo.png"
+  },
   "action": {
-    "default_popup": "popup.html"
+    "default_popup": "popup.html",
+    "default_icon": "images/logo.png"
   },
   "web_accessible_resources": [
     {
