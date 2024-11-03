@@ -1,4 +1,4 @@
-# X.com Emoji Picker Extension 🎯
+# Inline X Emoji's 🎯
 
 A Chrome extension that brings Discord-style emoji picking to X.com (formerly Twitter). Type messages naturally with inline emoji suggestions and manage your emoji collection easily.
 
@@ -6,7 +6,7 @@ A Chrome extension that brings Discord-style emoji picking to X.com (formerly Tw
 
 - **Inline Emoji Suggestions**: Type `:` to trigger emoji suggestions while composing posts
 - **Smart Matching**: Finds emojis by name and aliases (e.g., `:joy:`, `:happy:`)
-- **Popup Interface**: Access all emojis through a convenient popup in the top right
+- **Popup Interface**: Access all emojis through a convenient popup in the extension bar
 - **Search Functionality**: Quickly find the perfect emoji using the search bar
 - **Copy to Clipboard**: One-click copying of any emoji
 - **Customizable**: Easily add or remove emojis by modifying the emoji database
@@ -51,20 +51,6 @@ Each emoji entry requires:
 
 ## 🛠️ Development
 
-### Project Structure
-```
-extension/
-├── manifest.json
-├── popup/
-│   ├── popup.html
-│   ├── popup.js
-│   └── popup.css
-├── content/
-│   └── content.js
-└── data/
-    └── emojiData.json
-```
-
 ### Local Development
 1. Make your changes
 2. Reload the extension in `chrome://extensions/`
@@ -86,7 +72,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🙌 Acknowledgments
 
-- Inspired by Discord's emoji picker
+- Inspired by Discord's and many other applications inline emoji picker
 - Thanks to all contributors who have helped shape this project
 
 ## 📮 Support
